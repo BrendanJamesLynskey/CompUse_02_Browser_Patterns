@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CompUse 02 — Browser Agent Patterns</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-card: #0d1117;
+            --bg-code: #161b22;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --accent: #76B900;
+            --accent-dim: #76B90044;
+            --accent-glow: #76B90033;
+            --border: #21262d;
+            --font-display: 'Space Grotesk', sans-serif;
+            --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+            --font-body: 'Inter', sans-serif;
+            --max-width: 900px;
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: var(--font-body);
+            font-size: 17px;
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem 1.5rem;
+            text-align: center;
+            position: relative;
+        }
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+        .hero > * { position: relative; z-index: 1; }
+        .series-label {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--accent);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+        }
+        .hero h1 {
+            font-family: var(--font-display);
+            font-size: clamp(2rem, 5vw, 3.2rem);
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1.2;
+            margin-bottom: 1rem;
+        }
+        .hero h1 .accent { color: var(--accent); }
+        .hero .subtitle {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            max-width: 640px;
+            margin-bottom: 2rem;
+        }
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            justify-content: center;
+            margin-bottom: 2.5rem;
+        }
+        .tag {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            background: var(--accent-dim);
+            white-space: nowrap;
+        }
+        .pipeline {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 0.25rem;
+            margin-bottom: 1rem;
+            max-width: var(--max-width);
+        }
+        .pipeline-step {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            padding: 0.3rem 0.7rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+        .pipeline-arrow { color: var(--accent); font-size: 0.9rem; font-weight: 700; }
+        .slide {
+            min-height: 100vh;
+            max-width: var(--max-width);
+            margin: 0 auto;
+            padding: 4rem 1.5rem;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .slide-number {
+            font-family: var(--font-display);
+            font-size: 5rem;
+            font-weight: 700;
+            color: var(--accent-dim);
+            position: absolute;
+            top: 2rem;
+            right: 1.5rem;
+            line-height: 1;
+            user-select: none;
+        }
+        .slide h2 {
+            font-family: var(--font-display);
+            font-size: 1.9rem;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 1.5rem;
+            line-height: 1.25;
+        }
+        .slide h3 {
+            font-family: var(--font-display);
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+        .slide p { margin-bottom: 1rem; color: var(--text-secondary); }
+        .slide p strong { color: var(--text-primary); }
+        .slide ul, .slide ol { margin-bottom: 1rem; padding-left: 1.5rem; color: var(--text-secondary); }
+        .slide li { margin-bottom: 0.4rem; }
+        .slide li strong { color: var(--text-primary); }
+        .slide code {
+            font-family: var(--font-mono);
+            font-size: 0.88em;
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            padding: 0.05rem 0.35rem;
+            border-radius: 3px;
+            color: #c9d1d9;
+        }
+        .code-block {
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin: 1.25rem 0;
+            overflow: hidden;
+        }
+        .code-header {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--accent);
+            background: rgba(118, 185, 0, 0.08);
+            padding: 0.4rem 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .code-block pre { margin: 0; padding: 1rem; overflow-x: auto; }
+        .code-block code {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: #c9d1d9;
+            background: transparent;
+            border: none;
+            padding: 0;
+        }
+        .kw { color: #ff7b72; }
+        .fn { color: #d2a8ff; }
+        .str { color: #a5d6ff; }
+        .cm { color: #8b949e; font-style: italic; }
+        .num { color: #79c0ff; }
+        .type { color: #ffa657; }
+        .dir { color: #ff7b72; }
+        .mac { color: #ffa657; }
+        .table-wrap {
+            overflow-x: auto;
+            margin: 1.25rem 0;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        th {
+            background: var(--bg-code);
+            color: var(--accent);
+            font-weight: 600;
+            text-align: left;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+            font-family: var(--font-display);
+            white-space: nowrap;
+        }
+        td {
+            padding: 0.6rem 1rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+        tr:last-child td { border-bottom: none; }
+        tr:nth-child(even) td { background: rgba(13, 17, 23, 0.5); }
+        .diagram-flow {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        .diagram-box {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            padding: 0.5rem 1rem;
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            text-align: center;
+            white-space: nowrap;
+        }
+        .diagram-box.accent { border-color: var(--accent); color: var(--accent); background: rgba(118, 185, 0, 0.08); }
+        .diagram-box.dim { color: var(--text-secondary); border-color: var(--border); }
+        .diagram-arrow { color: var(--accent); font-size: 1.3rem; font-weight: 700; }
+        .diagram-vertical {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.3rem;
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        .diagram-vertical .diagram-arrow { font-size: 1.1rem; }
+        .hierarchy {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        .hierarchy-level { display: flex; align-items: center; gap: 0.75rem; }
+        .hierarchy-label {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            min-width: 80px;
+            text-align: right;
+        }
+        .hierarchy-items { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+        .hierarchy-item {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+        .hierarchy-item.accent { border-color: var(--accent); color: var(--accent); background: rgba(118, 185, 0, 0.08); }
+        .diagram-grid {
+            display: grid;
+            gap: 0.75rem;
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        .diagram-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+        .diagram-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+        .diagram-panel {
+            padding: 1rem;
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+        }
+        .diagram-panel.accent-border { border-left: 3px solid var(--accent); }
+        .diagram-panel h4 {
+            font-family: var(--font-display);
+            font-size: 1rem;
+            color: var(--accent);
+            margin-bottom: 0.5rem;
+        }
+        .diagram-panel p, .diagram-panel ul { font-size: 0.85rem; }
+        .callout {
+            background: var(--bg-card);
+            border-left: 3px solid var(--accent);
+            border-radius: 0 8px 8px 0;
+            padding: 1rem 1.25rem;
+            margin: 1.25rem 0;
+        }
+        .callout p { margin-bottom: 0; }
+        .callout p + p { margin-top: 0.5rem; }
+        .callout .callout-label {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.3rem;
+        }
+        .contents-list { list-style: none; padding-left: 0; counter-reset: contents; }
+        .contents-list li {
+            counter-increment: contents;
+            padding: 0.6rem 0;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .contents-list li:last-child { border-bottom: none; }
+        .contents-list li::before {
+            content: counter(contents, decimal-leading-zero);
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--accent);
+            min-width: 2rem;
+        }
+        .contents-list a { color: var(--text-primary); text-decoration: none; transition: color 0.2s; }
+        .contents-list a:hover { color: var(--accent); }
+        .footer {
+            text-align: center;
+            padding: 3rem 1.5rem;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border);
+            max-width: var(--max-width);
+            margin: 0 auto;
+        }
+        .footer a { color: var(--accent); text-decoration: none; }
+        .footer a:hover { text-decoration: underline; }
+        .canvas-wrap {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1.25rem 0;
+            overflow-x: auto;
+        }
+        .canvas-wrap canvas, .canvas-wrap svg { display: block; margin: 0 auto; max-width: 100%; }
+        .badge {
+            display: inline-block;
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            padding: 0.1rem 0.45rem;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            vertical-align: middle;
+            margin-left: 0.3rem;
+        }
+        .badge.ok    { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+        .badge.warn  { border-color: #ffa657; color: #ffa657; background: rgba(255,166,87,0.08); }
+        .badge.bad   { border-color: #ff7b72; color: #ff7b72; background: rgba(255,123,114,0.08); }
+        @media (max-width: 640px) {
+            .slide { padding: 3rem 1rem; min-height: auto; }
+            .slide-number { font-size: 3rem; top: 1.5rem; right: 1rem; }
+            .slide h2 { font-size: 1.5rem; }
+            .diagram-grid.cols-2, .diagram-grid.cols-3 { grid-template-columns: 1fr; }
+            .pipeline { gap: 0.15rem; }
+            .pipeline-step { font-size: 0.6rem; padding: 0.2rem 0.4rem; }
+            .hero h1 { font-size: 1.8rem; }
+            table { font-size: 0.78rem; }
+        }
+    </style>
+</head>
+<body>
+<header class="hero">
+    <div class="series-label">Computer-Use &amp; Browser Agents Series &mdash; Presentation 02</div>
+    <h1><span class="accent">Browser Agent</span> Patterns</h1>
+    <p class="subtitle">Browser-Use, Playwright agents, Steel, accessibility-tree extraction, WebArena/Mind2Web evals, captcha/anti-bot, stateful sessions, pricing, and failure recovery.</p>
+
+    <div class="tags">
+        <span class="tag">Browser-Use</span>
+        <span class="tag">Playwright</span>
+        <span class="tag">Steel</span>
+        <span class="tag">AXTree</span>
+        <span class="tag">WebArena</span>
+        <span class="tag">Mind2Web</span>
+        <span class="tag">Anti-Bot</span>
+    </div>
+
+    <div class="pipeline">
+        <span class="pipeline-step">Browser Launch</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">DOM / AXTree</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">LLM Plan</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Action</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Observe</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Recover</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Eval</span>
+    </div>
+</header>
+
+<section class="slide" id="slide-00">
+    <div class="slide-number">00</div>
+    <h2>Topics We'll Cover</h2>
+    <ul class="contents-list">
+        <li><a href="#slide-01">Browser-Use, Playwright Agents, Steel</a></li>
+        <li><a href="#slide-02">DOM Extraction Strategies &mdash; Accessibility Tree, Interactive-Element Detection</a></li>
+        <li><a href="#slide-03">Screen Capture vs DOM-Only &mdash; When Each Wins</a></li>
+        <li><a href="#slide-04">WebArena and Mind2Web Evals</a></li>
+        <li><a href="#slide-05">Captcha, Anti-Bot, Ethics</a></li>
+        <li><a href="#slide-06">Stateful Sessions &mdash; Cookies, Auth, Persistence</a></li>
+        <li><a href="#slide-07">Pricing &mdash; Minutes Per Task, Infrastructure</a></li>
+        <li><a href="#slide-08">Failure Modes &amp; Recovery</a></li>
+        <li><a href="#slide-09">What to Take Away</a></li>
+    </ul>
+</section>
+
+<section class="slide" id="slide-01">
+    <div class="slide-number">01</div>
+    <h2>Browser-Use, Playwright Agents, Steel</h2>
+    <p>Three tiers of abstraction have emerged for browser-based LLM agents. They differ in where the DOM/screenshot extraction happens, which models they support, and how much infrastructure they manage for you.</p>
+
+    <div class="diagram-grid cols-3">
+        <div class="diagram-panel accent-border">
+            <h4>Browser-Use <span class="badge ok">Python library</span></h4>
+            <p><strong>browser-use v0.2.x</strong> (MIT, Jan 2025) wraps Playwright with a hybrid AXTree + screenshot perception layer. 1000+ GitHub stars within two weeks of release.</p>
+            <ul>
+                <li>Auto-extracts interactive elements into a flat JSON list (role, text, bounding box)</li>
+                <li>Passes element list + optional screenshot to the LLM</li>
+                <li>Returns typed actions: <code>click_element(index=7)</code>, <code>input_text(index=3, text="...")</code></li>
+                <li>Built-in memory / multi-tab support</li>
+                <li><code>pip install browser-use</code>; model-agnostic (OpenAI, Anthropic, Gemini, local)</li>
+            </ul>
+        </div>
+        <div class="diagram-panel accent-border">
+            <h4>Playwright agents <span class="badge warn">DIY</span></h4>
+            <p>Roll your own scaffolding around <strong>Playwright</strong> (Microsoft, 2020). Full control; no abstraction overhead.</p>
+            <ul>
+                <li><code>playwright.chromium.launch(headless=True)</code></li>
+                <li>Access the full CDP: screenshots, network intercept, service-worker control, storage</li>
+                <li>Call <code>page.accessibility.snapshot()</code> for the AXTree</li>
+                <li>Inject <code>&lt;script&gt;</code> tags or evaluate JS for richer extraction</li>
+                <li>Used by OpenAI Operator internally (Playwright + CUA model)</li>
+            </ul>
+        </div>
+        <div class="diagram-panel accent-border">
+            <h4>Steel <span class="badge ok">managed infra</span></h4>
+            <p><strong>Steel</strong> (steel.dev, 2024) is a remote browser-as-a-service: managed Chromium instances accessible via CDP, Playwright, or Puppeteer &mdash; no local browser, no CAPTCHA infrastructure to manage.</p>
+            <ul>
+                <li>REST API: <code>POST /sessions</code> &rarr; session ID + CDP endpoint</li>
+                <li>Residential proxy pool built in; human-like TLS fingerprint</li>
+                <li>Persistent profiles across sessions (cookies, localStorage)</li>
+                <li>Screenshot streaming via WebSocket</li>
+                <li>Priced per minute of active session (see Slide 07)</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">Which to pick</div>
+        <p>Use <strong>Browser-Use</strong> for quick prototyping with any major LLM. Use <strong>raw Playwright</strong> when you need fine-grained CDP control, custom JS injection, or non-standard browser configurations. Use <strong>Steel</strong> when you need managed residential proxies, persistent sessions across runs, or you don't want to manage a Chromium fleet yourself.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-02">
+    <div class="slide-number">02</div>
+    <h2>DOM Extraction Strategies &mdash; Accessibility Tree, Interactive-Element Detection</h2>
+    <p>The quality of the agent's world-model depends entirely on how well the page is reduced to a form the LLM can plan over. Four strategies are in common use, from least to most sophisticated:</p>
+
+    <h3>Strategy 1 &mdash; Full inner-HTML dump</h3>
+    <p>Naive. Grabs <code>document.body.innerHTML</code> or the Playwright <code>content()</code> call. Typical page: 200&ndash;800 KB raw, 30&ndash;150 KB stripped. Token count after stripping scripts and styles: 8 000&ndash;60 000. Almost always too large for a single context window. Only viable for very small pages or if you're summarising the page separately.</p>
+
+    <h3>Strategy 2 &mdash; Interactive-element list</h3>
+    <div class="code-block">
+        <div class="code-header">Playwright &mdash; collect all interactive elements with bounding boxes</div>
+<pre><code><span class="kw">async def</span> <span class="fn">get_interactive_elements</span>(page):
+    <span class="kw">return await</span> page.<span class="fn">evaluate</span>(<span class="str">"""() => {
+        const selectors = [
+          'a[href]', 'button', 'input', 'select', 'textarea',
+          '[role=button]', '[role=link]', '[role=checkbox]',
+          '[role=combobox]', '[tabindex]:not([tabindex="-1"])'
+        ];
+        return selectors
+          .flatMap(s => [...document.querySelectorAll(s)])
+          .filter(el => {
+              const r = el.getBoundingClientRect();
+              return r.width > 0 && r.height > 0;  // visible only
+          })
+          .slice(0, 150)  // hard cap
+          .map((el, i) => ({
+              index: i,
+              tag: el.tagName.toLowerCase(),
+              type: el.type || null,
+              text: (el.innerText || el.value || el.placeholder || '').trim().slice(0, 120),
+              href: el.href || null,
+              rect: el.getBoundingClientRect()
+          }));
+    }"""</span>)</code></pre>
+    </div>
+
+    <h3>Strategy 3 &mdash; CDP Accessibility tree</h3>
+    <div class="code-block">
+        <div class="code-header">Playwright CDP session &mdash; full AXTree then filter to interactive</div>
+<pre><code>cdp = <span class="kw">await</span> page.context.<span class="fn">new_cdp_session</span>(page)
+tree = <span class="kw">await</span> cdp.<span class="fn">send</span>(<span class="str">"Accessibility.getFullAXTree"</span>)
+<span class="cm"># tree['nodes'] &mdash; list of dicts with role, name, nodeId, backendDOMNodeId</span>
+interactive_roles = {
+    <span class="str">"button"</span>, <span class="str">"link"</span>, <span class="str">"textbox"</span>, <span class="str">"combobox"</span>, <span class="str">"checkbox"</span>,
+    <span class="str">"radio"</span>, <span class="str">"menuitem"</span>, <span class="str">"tab"</span>, <span class="str">"listbox"</span>, <span class="str">"searchbox"</span>
+}
+filtered = [
+    n <span class="kw">for</span> n <span class="kw">in</span> tree[<span class="str">"nodes"</span>]
+    <span class="kw">if</span> n.get(<span class="str">"role"</span>, {}).get(<span class="str">"value"</span>) <span class="kw">in</span> interactive_roles
+    <span class="kw">and not</span> n.get(<span class="str">"ignored"</span>, <span class="kw">False</span>)
+]
+<span class="cm"># Typical result: 20–100 nodes, ~1.5 KB JSON &mdash; fits easily in context</span></code></pre>
+    </div>
+
+    <h3>Strategy 4 &mdash; Set-of-Marks (SOM) overlay</h3>
+    <p>Draw numbered bounding boxes on the screenshot (using Canvas API or Pillow post-capture) for each interactive element. Pass the annotated image + the index&rarr;element mapping. Model says <code>click(mark=12)</code>. Avoids raw co-ordinate hallucination. Adds ~200 ms overhead for overlay generation.</p>
+
+    <div class="callout">
+        <div class="callout-label">Browser-Use v0.2 implementation detail</div>
+        <p>Browser-Use combines strategies 2 and 4: it builds an interactive-element list (JavaScript enumeration), annotates the screenshot with coloured bounding boxes, and sends both the annotated image and the element list to the model. The model is prompted to reference elements by index. This is why Browser-Use consistently outperforms screenshot-only baselines on forms and multi-select widgets.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-03">
+    <div class="slide-number">03</div>
+    <h2>Screen Capture vs DOM-Only &mdash; When Each Wins</h2>
+    <p>No single perception strategy dominates across all web tasks. The right choice depends on the page's structure and the nature of the task.</p>
+
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Scenario</th><th>Best strategy</th><th>Why</th></tr></thead>
+            <tbody>
+                <tr>
+                    <td>Simple web form (login, checkout)</td>
+                    <td>AXTree / element list only</td>
+                    <td>All needed info is in roles + labels; no visual parsing needed; 5&times; cheaper than screenshot</td>
+                </tr>
+                <tr>
+                    <td>Data-heavy table / dashboard</td>
+                    <td>DOM extraction (innerText per cell)</td>
+                    <td>Tables render well as structured text; screenshot wastes tokens on cell borders and styling</td>
+                </tr>
+                <tr>
+                    <td>CAPTCHA, image-based ARIA, CSS-only buttons</td>
+                    <td>Screenshot required</td>
+                    <td>AXTree shows <code>role="img" name=""</code>; only pixels reveal the visual content</td>
+                </tr>
+                <tr>
+                    <td>Canvas-rendered application (Figma, Google Maps)</td>
+                    <td>Screenshot required</td>
+                    <td>DOM contains almost nothing useful; canvas content is entirely pixel-based</td>
+                </tr>
+                <tr>
+                    <td>Single-page app with good ARIA semantics</td>
+                    <td>AXTree with screenshot fallback</td>
+                    <td>Modern SPA frameworks (React, Vue with aria-*) produce usable trees; screenshot for disambiguation</td>
+                </tr>
+                <tr>
+                    <td>Legacy enterprise portal</td>
+                    <td>Screenshot + SOM overlay</td>
+                    <td>Broken/absent a11y tree; pixel co-ordinates are the only reliable anchor</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">Dynamic content: the hidden third option</div>
+        <p>For pages that update asynchronously (stock tickers, live chat, progress bars), neither a static screenshot nor a one-shot DOM extraction is sufficient. The correct pattern is a <strong>mutation observer</strong>: inject a small JS shim via <code>page.evaluate</code> that watches <code>MutationObserver</code> events and posts them to a queue. The agent polls the queue rather than re-capturing the full page, giving 50&ndash;80% reduction in per-step token cost for long-running observations.</p>
+    </div>
+
+    <div class="canvas-wrap">
+        <svg viewBox="0 0 700 180" width="700" height="180" xmlns="http://www.w3.org/2000/svg">
+            <style>
+                .gt  { fill: #e6edf3; font-family: 'Space Grotesk', sans-serif; font-size: 12px; font-weight: 600; }
+                .gsb { fill: #8b949e; font-family: 'JetBrains Mono', monospace; font-size: 10px; }
+                .seg { fill: rgba(118,185,0,0.25); stroke: #76B900; stroke-width: 1; }
+                .seg2{ fill: rgba(210,168,255,0.25); stroke: #d2a8ff; stroke-width: 1; }
+                .seg3{ fill: rgba(255,166,87,0.25); stroke: #ffa657; stroke-width: 1; }
+            </style>
+            <text x="10" y="20" class="gt">Strategy applicability spectrum</text>
+
+            <text x="10"  y="55" class="gt" style="fill:#76B900">AXTree / DOM only</text>
+            <rect x="160" y="40" width="220" height="28" class="seg"/>
+            <text x="165" y="59" class="gsb">forms, tables, SPA with ARIA</text>
+
+            <text x="10"  y="105" class="gt" style="fill:#d2a8ff">Screenshot required</text>
+            <rect x="160" y="90" width="370" height="28" class="seg2"/>
+            <text x="165" y="109" class="gsb">canvas apps, legacy portals, captcha, image menus</text>
+
+            <text x="10"  y="155" class="gt" style="fill:#ffa657">Hybrid (AXTree + screenshot)</text>
+            <rect x="160" y="140" width="310" height="28" class="seg3"/>
+            <text x="165" y="159" class="gsb">most real-world tasks &mdash; best accuracy, moderate cost</text>
+        </svg>
+    </div>
+</section>
+
+<section class="slide" id="slide-04">
+    <div class="slide-number">04</div>
+    <h2>WebArena and Mind2Web Evals</h2>
+    <p>Browser-focused evals differ from the full-desktop OSWorld in that they run against <strong>controlled web environments</strong>. This makes ground-truth verification easier but raises contamination concerns for any model trained on public web data.</p>
+
+    <div class="diagram-grid cols-2">
+        <div class="diagram-panel accent-border">
+            <h4>WebArena <span class="badge ok">live execution</span></h4>
+            <p><strong>812 tasks</strong> across five self-hosted web clones: Reddit (Postmill), GitLab, OneStopShop (e-commerce), CMS (Content Manager), Maps (OpenStreetMap clone).</p>
+            <p><strong>Evaluation:</strong> rule-based functional checks &mdash; did the item get added to cart? did the GitLab issue get created with the right label? &mdash; augmented by string-match and regex verifiers.</p>
+            <p><strong>2025 SOTA:</strong> ~35.8% (Claude 3.5 Sonnet + custom scaffolding). Human baseline: ~84%.</p>
+            <p><strong>Setup:</strong> Docker Compose; five containers; ~12 GB download; requires manual seed scripts per task set. See <code>web-arena-bench/webarena</code> on GitHub.</p>
+        </div>
+        <div class="diagram-panel accent-border">
+            <h4>Mind2Web <span class="badge warn">offline replay</span></h4>
+            <p><strong>2000 tasks</strong> from 137 real websites across 31 domains. Tasks are recorded human trajectories; agents re-play against <em>static snapshots</em>, not live pages.</p>
+            <p><strong>Evaluation:</strong> step-level action match (is the predicted element in the gold element set?) plus task success rate.</p>
+            <p><strong>2025 SOTA:</strong> ~40% task success (Qwen-VL + fine-tune on Mind2Web train split). GPT-4V (zero-shot): ~18%.</p>
+            <p><strong>Limitation:</strong> static snapshots mean the agent never needs to handle async page loads, infinite scroll, or dynamic state &mdash; easier than real browsing but useful for model development.</p>
+        </div>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Eval</th><th>Live execution?</th><th>Datasets</th><th>Verifier type</th><th>Freshness risk</th></tr></thead>
+            <tbody>
+                <tr><td><strong>WebArena</strong></td><td>Yes (self-hosted)</td><td>812 tasks, 5 app clones</td><td>Rule-based + string match</td><td>Low &mdash; self-hosted clones don't change</td></tr>
+                <tr><td><strong>Mind2Web</strong></td><td>No (static replay)</td><td>2000 tasks, 137 real sites</td><td>Element match at each step</td><td>Medium &mdash; snapshots from 2023 may lag real sites</td></tr>
+                <tr><td><strong>VisualWebArena</strong></td><td>Yes</td><td>910 tasks, adds image-grounding tasks</td><td>Rule-based + VQA judge</td><td>Low</td></tr>
+                <tr><td><strong>WorkArena</strong></td><td>Yes (ServiceNow sandbox)</td><td>33 000 tasks</td><td>API-verified state changes</td><td>Low</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">Why WebArena scores feel low</div>
+        <p>35% success on WebArena sounds poor but the tasks are genuinely hard: &ldquo;find all open GitLab issues assigned to the user with the most closed issues, and change their username&rdquo; requires chaining 6&ndash;10 navigation + form steps with zero error margin. A single wrong click fails the entire task. Score is task-success, not step-accuracy &mdash; step accuracy for the same model is typically 65&ndash;75%.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-05">
+    <div class="slide-number">05</div>
+    <h2>Captcha, Anti-Bot, Ethics</h2>
+    <p>Browser agents inevitably collide with anti-bot defences. Understanding the technical layers helps both in mitigating them legitimately and in knowing when to refuse.</p>
+
+    <h3>The anti-bot stack</h3>
+    <div class="hierarchy">
+        <div class="hierarchy-level">
+            <div class="hierarchy-label">Layer 1</div>
+            <div class="hierarchy-items">
+                <div class="hierarchy-item accent">TLS fingerprint (JA3 hash)</div>
+                <div class="hierarchy-item accent">IP reputation / ASN block</div>
+                <div class="hierarchy-item accent">HTTP/2 settings fingerprint (ALPN)</div>
+            </div>
+        </div>
+        <div class="hierarchy-level">
+            <div class="hierarchy-label">Layer 2</div>
+            <div class="hierarchy-items">
+                <div class="hierarchy-item">navigator.webdriver === true</div>
+                <div class="hierarchy-item">missing browser plug-ins</div>
+                <div class="hierarchy-item">CDP leak via window.cdc_* artefacts</div>
+                <div class="hierarchy-item">headless Chrome user-agent</div>
+            </div>
+        </div>
+        <div class="hierarchy-level">
+            <div class="hierarchy-label">Layer 3</div>
+            <div class="hierarchy-items">
+                <div class="hierarchy-item">reCAPTCHA v3 behaviour score</div>
+                <div class="hierarchy-item">Cloudflare Turnstile JS attestation</div>
+                <div class="hierarchy-item">hCaptcha challenge</div>
+            </div>
+        </div>
+        <div class="hierarchy-level">
+            <div class="hierarchy-label">Layer 4</div>
+            <div class="hierarchy-items">
+                <div class="hierarchy-item">Mouse movement entropy analysis</div>
+                <div class="hierarchy-item">Keystroke timing distribution</div>
+                <div class="hierarchy-item">Scroll physics plausibility</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="code-block">
+        <div class="code-header">Playwright stealth patches &mdash; playwright-stealth library</div>
+<pre><code><span class="kw">from</span> playwright.async_api <span class="kw">import</span> async_playwright
+<span class="kw">from</span> playwright_stealth <span class="kw">import</span> stealth_async
+
+<span class="kw">async with</span> async_playwright() <span class="kw">as</span> p:
+    browser = <span class="kw">await</span> p.chromium.<span class="fn">launch</span>(
+        headless=<span class="kw">True</span>,
+        args=[<span class="str">"--disable-blink-features=AutomationControlled"</span>]
+    )
+    page = <span class="kw">await</span> browser.<span class="fn">new_page</span>()
+    <span class="kw">await</span> <span class="fn">stealth_async</span>(page)   <span class="cm"># patches navigator.webdriver, plugins, CDP artefacts</span>
+
+    <span class="cm"># Add mouse-movement noise before clicks</span>
+    <span class="kw">await</span> page.<span class="fn">mouse.move</span>(x + random.gauss(<span class="num">0</span>, <span class="num">3</span>),
+                          y + random.gauss(<span class="num">0</span>, <span class="num">3</span>))
+    <span class="kw">await</span> asyncio.<span class="fn">sleep</span>(random.uniform(<span class="num">0.08</span>, <span class="num">0.35</span>))
+    <span class="kw">await</span> page.<span class="fn">mouse.click</span>(x, y)</code></pre>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">Ethical boundary</div>
+        <p>Bypassing a site's terms of service with automation is a legal risk (Computer Fraud and Abuse Act in the US; Computer Misuse Act in the UK). The practical line: use browser agents to automate <em>your own account's</em> tasks. CAPTCHA-solving at scale for scraping or credential-stuffing crosses into illegal territory. Steel's residential proxies and TLS fingerprint spoofing are dual-use tools &mdash; the ethics lie in the intent and ToS, not the technique.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-06">
+    <div class="slide-number">06</div>
+    <h2>Stateful Sessions &mdash; Cookies, Auth, Persistence</h2>
+    <p>Most non-trivial web tasks require authentication. The three main patterns for session persistence differ in security, portability, and implementation complexity.</p>
+
+    <div class="diagram-grid cols-3">
+        <div class="diagram-panel accent-border">
+            <h4>Storage-state files</h4>
+            <p>Playwright's <code>context.storage_state(path="state.json")</code> serialises cookies + localStorage + sessionStorage to JSON. Reload with <code>browser.new_context(storage_state="state.json")</code>. Simple; human-readable; works across sessions.</p>
+            <p><strong>Risk:</strong> the JSON file contains live auth tokens. Treat as a secret; rotate regularly.</p>
+        </div>
+        <div class="diagram-panel accent-border">
+            <h4>OAuth / PKCE flows</h4>
+            <p>For services with OAuth 2.0 (Google, GitHub, Slack), have the agent complete the PKCE flow once manually, then persist only the refresh token. Re-mint access tokens programmatically; never screen-scrape the OAuth redirect.</p>
+            <p><strong>Steel advantage:</strong> its persistent-profile feature stores cookies server-side, associated with a session ID &mdash; no local secret file needed.</p>
+        </div>
+        <div class="diagram-panel accent-border">
+            <h4>Password manager integration</h4>
+            <p>Inject credentials at agent launch via environment variables or a vault (HashiCorp Vault, AWS Secrets Manager). The agent calls <code>page.fill("#username", os.environ["SITE_USER"])</code> directly rather than storing credentials in the browser profile.</p>
+            <p>Never pass credentials via the LLM context &mdash; they may appear in logs, traces, or be extracted by prompt injection.</p>
+        </div>
+    </div>
+
+    <div class="code-block">
+        <div class="code-header">Playwright &mdash; save and reload storage state</div>
+<pre><code><span class="cm"># --- Save after manual login ---</span>
+context = <span class="kw">await</span> browser.<span class="fn">new_context</span>()
+page = <span class="kw">await</span> context.<span class="fn">new_page</span>()
+<span class="kw">await</span> page.<span class="fn">goto</span>(<span class="str">"https://example.com/login"</span>)
+<span class="cm"># ... perform login manually or via the agent ...</span>
+<span class="kw">await</span> context.<span class="fn">storage_state</span>(path=<span class="str">"example_session.json"</span>)
+<span class="kw">await</span> context.<span class="fn">close</span>()
+
+<span class="cm"># --- Restore on next run ---</span>
+context = <span class="kw">await</span> browser.<span class="fn">new_context</span>(
+    storage_state=<span class="str">"example_session.json"</span>
+)
+page = <span class="kw">await</span> context.<span class="fn">new_page</span>()
+<span class="kw">await</span> page.<span class="fn">goto</span>(<span class="str">"https://example.com/dashboard"</span>)
+<span class="cm"># Already authenticated; no login page shown</span></code></pre>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">Multi-tab state</div>
+        <p>Browser-Use v0.2 supports explicit multi-tab management: <code>open_tab(url)</code>, <code>switch_tab(tab_id)</code>, <code>close_tab(tab_id)</code>. This is essential for tasks that require opening a search result in a new tab while keeping the search results page for backtracking. Each tab shares the same browser context (and therefore the same cookies), but has its own navigation history and scroll position.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-07">
+    <div class="slide-number">07</div>
+    <h2>Pricing &mdash; Minutes Per Task, Infrastructure</h2>
+    <p>Browser-agent costs have three components: <strong>LLM inference</strong> (per token), <strong>browser infrastructure</strong> (per minute), and <strong>operator overhead</strong> (retries, human-in-the-loop interrupts). Understanding each matters for cost-effective deployment.</p>
+
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Component</th><th>Typical cost</th><th>Notes</th></tr></thead>
+            <tbody>
+                <tr>
+                    <td>LLM inference &mdash; GPT-4o screenshot mode</td>
+                    <td>~$0.0019 / step (vision input)<br>~$0.006 / step (output ~200 tokens)</td>
+                    <td>20-step task &asymp; $0.16 in inference; screenshot + action output</td>
+                </tr>
+                <tr>
+                    <td>LLM inference &mdash; Claude 3.5 Sonnet</td>
+                    <td>~$0.0038 / step (vision input)<br>~$0.015 / step (output ~200 tokens)</td>
+                    <td>Haiku 3.5 cuts input 10&times; to ~$0.0004/step; lower accuracy</td>
+                </tr>
+                <tr>
+                    <td>Steel remote browser</td>
+                    <td>~$0.10 / minute (2025 pricing)</td>
+                    <td>20-step task takes ~3&ndash;8 min &asymp; $0.30&ndash;$0.80 in browser time</td>
+                </tr>
+                <tr>
+                    <td>Self-hosted Playwright (AWS EC2 t3.medium)</td>
+                    <td>~$0.0416 / hour &asymp; $0.0007 / minute</td>
+                    <td>100&times; cheaper than managed &mdash; but you pay for ops, proxy infra, CAPTCHA handling</td>
+                </tr>
+                <tr>
+                    <td>Residential proxy (Bright Data / Oxylabs)</td>
+                    <td>$8&ndash;$15 / GB traffic</td>
+                    <td>Most tasks use &lt;5 MB of traffic &mdash; negligible; relevant only for data-scraping scale</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">Real-world task economics (2025 estimates)</div>
+        <p><strong>Simple form fill</strong> (5 steps, AXTree only, GPT-4o mini): ~$0.03 total. <strong>Flight search &amp; booking</strong> (30 steps, Claude 3.5 Sonnet): ~$0.80&ndash;$1.50 self-hosted, ~$2.50&ndash;$4.00 on Steel. <strong>Competitive intelligence run</strong> (100 steps, GPT-4o + proxy): ~$3&ndash;$8. Infrastructure cost dominates at scale; model cost dominates for infrequent single tasks.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-08">
+    <div class="slide-number">08</div>
+    <h2>Failure Modes &amp; Recovery</h2>
+    <p>Browser agents fail in characteristic ways. Understanding the failure taxonomy is necessary before designing a recovery strategy.</p>
+
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Failure mode</th><th>Cause</th><th>Detection</th><th>Recovery</th></tr></thead>
+            <tbody>
+                <tr>
+                    <td><strong>Stale screenshot</strong></td>
+                    <td>Page load in progress; spinner visible</td>
+                    <td><code>document.readyState</code> check; AXTree loading indicators</td>
+                    <td>Wait for <code>networkidle</code> before capturing; retry</td>
+                </tr>
+                <tr>
+                    <td><strong>Grounding hallucination</strong></td>
+                    <td>Model invents a UI element; click misses</td>
+                    <td><code>page.locator(sel).count()</code> before click</td>
+                    <td>Fall back to screenshot + SOM; re-plan with fresh perception</td>
+                </tr>
+                <tr>
+                    <td><strong>Infinite scroll loop</strong></td>
+                    <td>Model scrolls without recognising page end</td>
+                    <td>Hash last N screenshots; detect stable state</td>
+                    <td>Check <code>scrollHeight</code>; break when position static</td>
+                </tr>
+                <tr>
+                    <td><strong>Auth session expiry</strong></td>
+                    <td>Cookie TTL expires; redirect to login</td>
+                    <td>Monitor URL changes; detect <code>/login</code> pattern</td>
+                    <td>Re-authenticate from vault; resume from checkpoint</td>
+                </tr>
+                <tr>
+                    <td><strong>Rate limiting / 429</strong></td>
+                    <td>Too many requests; server throttles</td>
+                    <td><code>page.on("response")</code> status monitor</td>
+                    <td>Exponential back-off with jitter; respect <code>Retry-After</code></td>
+                </tr>
+                <tr>
+                    <td><strong>Prompt injection</strong></td>
+                    <td>Malicious page text hijacks agent goals</td>
+                    <td>Secondary classifier on page text</td>
+                    <td>Instruction hierarchy in system prompt; human gate before irreversible actions</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="code-block">
+        <div class="code-header">Playwright &mdash; checkpoint-based recovery loop pattern</div>
+<pre><code><span class="kw">async def</span> <span class="fn">run_with_recovery</span>(task, max_steps=<span class="num">40</span>, max_retries=<span class="num">3</span>):
+    checkpoint = <span class="kw">None</span>   <span class="cm"># URL + storage state at last verified good state</span>
+    <span class="kw">for</span> attempt <span class="kw">in</span> range(max_retries):
+        <span class="kw">try</span>:
+            context = <span class="kw">await</span> <span class="fn">make_context</span>(checkpoint)
+            result = <span class="kw">await</span> <span class="fn">run_agent</span>(task, context, max_steps)
+            <span class="kw">if</span> result.success:
+                <span class="kw">return</span> result
+            <span class="cm"># Save checkpoint at last successful sub-goal</span>
+            checkpoint = <span class="kw">await</span> <span class="fn">save_checkpoint</span>(context)
+        <span class="kw">except</span> <span class="type">PlaywrightTimeoutError</span>:
+            <span class="kw">await</span> asyncio.<span class="fn">sleep</span>(<span class="num">2</span> ** attempt)   <span class="cm"># back-off</span>
+        <span class="kw">finally</span>:
+            <span class="kw">await</span> context.<span class="fn">close</span>()
+    <span class="kw">raise</span> <span class="type">AgentExhausted</span>(<span class="str">f"Task failed after {max_retries} attempts"</span>)</code></pre>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">The most important recovery rule</div>
+        <p>Never retry a write action (form submit, purchase, message send) without confirming the previous attempt failed. Network retries on idempotent GETs are safe; retrying a POST that may have succeeded silently causes duplicates. Check the resulting page state explicitly before concluding an action failed.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-09">
+    <div class="slide-number">09</div>
+    <h2>What to Take Away</h2>
+    <ul>
+        <li><strong>Three-tier tooling.</strong> Browser-Use for fast iteration; raw Playwright for full CDP control; Steel for managed infrastructure with residential proxies.</li>
+        <li><strong>AXTree + element list is the efficient perception default.</strong> ~230 tokens per step vs ~765 for a screenshot. Fall back to screenshot for canvas apps and legacy portals.</li>
+        <li><strong>Set-of-Marks gives 20&ndash;30% grounding improvement.</strong> Number bounding boxes on the screenshot; the model references marks by index, not raw co-ordinates.</li>
+        <li><strong>WebArena (live, ~36% SOTA) is the honest browser eval.</strong> Mind2Web (static replay, ~40%) is useful for development but doesn't test async page handling.</li>
+        <li><strong>Anti-bot defences are multi-layer.</strong> <code>playwright-stealth</code> handles layers 1&ndash;2. Cloudflare Turnstile needs attestation or a managed proxy. Never bypass ToS protections.</li>
+        <li><strong>Credentials belong outside the LLM context.</strong> Use Playwright storage-state files or Steel persistent profiles; never pass passwords in messages.</li>
+        <li><strong>Cost:</strong> inference dominates for short tasks; browser time dominates for long ones. 30-step task on Steel + Claude 3.5 Sonnet: ~$2&ndash;$4. Self-hosted: ~$1&ndash;$2.</li>
+        <li><strong>Recovery:</strong> checkpoint sub-goals; verify state after write actions; never blindly retry POSTs; detect session-expiry by monitoring URL patterns.</li>
+    </ul>
+
+    <div class="callout">
+        <div class="callout-label">Series complete</div>
+        <p>Deck 01 covered the architecture landscape: Anthropic Computer Use, OpenAI Operator, Gemini Mariner, action schemas, sandboxing, and full-desktop evals. This deck covered the browser-native layer in depth. Together they give you the vocabulary and engineering context to evaluate, deploy, and extend production computer-use systems.</p>
+    </div>
+</section>
+
+<footer class="footer">
+    <p>Part of the <a href="https://github.com/BrendanJamesLynskey/LLM_Hub_Computer_Use">Computer-Use &amp; Browser Agents sub-hub</a></p>
+    <p style="margin-top: 0.5rem; font-size: 0.8rem;"><a href="https://github.com/BrendanJamesLynskey/LLM_Hub_Computer_Use">Back to Series Index</a></p>
+</footer>
+<script>
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    });
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.opacity = '1';
+                entry.target.style.transform = 'translateY(0)';
+            }
+        });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('.slide').forEach(slide => {
+        slide.style.opacity = '0';
+        slide.style.transform = 'translateY(30px)';
+        slide.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+        observer.observe(slide);
+    });
+</script>
+</body>
+</html>
